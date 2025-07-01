@@ -11,9 +11,15 @@ CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("REDIRECT_URI")
 
+# Debug: Print to logs what the app sees
+print("DEBUG: CLIENT_ID =", repr(CLIENT_ID))
+print("DEBUG: CLIENT_SECRET =", repr(CLIENT_SECRET))
+print("DEBUG: REDIRECT_URI =", repr(REDIRECT_URI))
+
+# Fail fast if something's wrong
 assert CLIENT_ID and CLIENT_SECRET and REDIRECT_URI, "OAuth credentials not set"
 
-# Log to file
+# Log tokens to file
 logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 @app.route('/')
@@ -54,7 +60,7 @@ def callback():
         response.raise_for_status()
         token_data = response.json()
 
-        # Save token data to file
+        # Save to file
         with open("tokens.log", "a") as f:
             f.write(f"[TOKEN RECEIVED]\n{token_data}\n\n")
 
