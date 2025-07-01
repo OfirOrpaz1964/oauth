@@ -7,9 +7,9 @@ import os
 app = Flask(__name__)
 
 # Replace with your real Google OAuth credentials
-CLIENT_ID = ""
-CLIENT_SECRET = ""
-REDIRECT_URI = ""
+CLIENT_ID = os.environ.get("CLIENT_ID")
+CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
+REDIRECT_URI = os.environ.get("REDIRECT_URI")
 
 # Set up logging
 logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
